@@ -1,43 +1,86 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Snake Game</title>
-    <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f0f0f0;
-            font-family: Arial, sans-serif;
-        }
-        #game-container {
-            display: grid;
-            grid-template-columns: repeat(20, 20px);
-            grid-template-rows: repeat(20, 20px);
-            border: 2px solid #333;
-            background-color: #fff;
-        }
-        .snake {
-            background-color: #4CAF50;
-            border-radius: 3px;
-        }
-        .food {
-            background-color: #FF5733;
-            border-radius: 50%;
-        }
-        #score {
-            font-size: 24px;
-            margin: 10px 0;
-        }
-        #game-over {
-            display: none;
-            position: absolute;
-            background-color: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 20px;
-            border
+  <meta charset="UTF-8" />
+  <title>Minimal Snake Game</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+    }
+    #gameCanvas {
+      display: block;
+      margin: 0 auto;
+      background: #eee;
+      border: 1px solid #000;
+    }
+  </style>
+</head>
+<body>
+<canvas id="gameCanvas" width="400" height="400"></canvas>
+
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+
+  // Snake starting position and size
+  let snakeX = 50;
+  let snakeY = canvas.height / 2;
+  let snakeSize = 20;
+
+  // Vertical velocity (speed) for the snake
+  let velocityY = 0;
+  let speed = 2;
+
+  function drawSnake() {
+    // Draw a simple square for the snake
+    ctx.fillStyle = "green";
+    ctx.fillRect(snakeX, snakeY, snakeSize, snakeSize);
+  }
+
+  function update() {
+    // Update snake position based on velocity
+    snakeY += velocityY;
+
+    // Keep snake inside the canvas
+    if (snakeY < 0) {
+      snakeY = 0;
+    }
+    if (snakeY + snakeSize > canvas.height) {
+      snakeY = canvas.height - snakeSize;
+    }
+  }
+
+  function gameLoop() {
+    // Clear the canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Update and draw
+    update();
+    drawSnake();
+
+    // Continue the game loop
+    requestAnimationFrame(gameLoop);
+  }
+
+  // Handle keydown for up/down arrow keys
+  document.addEventListener('keydown', function(e) {
+    if (e.key === "ArrowUp") {
+      velocityY = -speed;
+    } else if (e.key === "ArrowDown") {
+      velocityY = speed;
+    }
+  });
+
+  // Stop movement when arrow key is released
+  document.addEventListener('keyup', function(e) {
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      velocityY = 0;
+    }
+  });
+
+  // Start the game loop
+  gameLoop();
+</script>
+</body>
+</html>
