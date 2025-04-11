@@ -2,105 +2,266 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>Snake Game (Arrow Keys in All Directions)</title>
+  <title>Snake Game</title>
   <style>
-    body {
-      margin: 0;
-      padding: 0;
+    html, body {
+      margin: 0; 
+      padding: 0; 
+      overflow: hidden; /* No scrollbars */
     }
     #gameCanvas {
       display: block;
-      margin: 0 auto;
-      background: #eee;
-      border: 1px solid #000;
+      background: #fff;
     }
   </style>
 </head>
 <body>
-<canvas id="gameCanvas" width="400" height="400"></canvas>
+<canvas id="gameCanvas"></canvas>
 
 <script>
-//===== SETUP =====
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+/*============================================================================
+  GLOBAL VARIABLES
+============================================================================*/
+let canvas, ctx;
 
-// Snake body is an array of segments, each segment has (x, y).
-// We'll start with 5 segments in a horizontal line.
-let snake = [
-  {x: 200, y: 200},
-  {x: 180, y: 200},
-  {x: 160, y: 200},
-  {x: 140, y: 200},
-  {x: 120, y: 200},
-];
-const segmentSize = 20;  // each segment is a 20x20 square
+// Snake is an array of segments, each with {x, y}.
+let snake = [];
+let initialSnakeLength = 5;
 
-// Directions: we store current direction as dx, dy (unit vectors)
-let dx = 1;  // moving right initially
+// Snake movement direction (dx, dy). We'll start moving right.
+let dx = 1;
 let dy = 0;
 
-// Initial speed. We'll increase it slowly during the game.
+// Segment size (initial “thickness”).
+let segmentSize = 20;  
+
+// Continually increasing speed factor for movement
 let speed = 2;
 
-//===== GAME LOOP =====
-function gameLoop() {
-  // Continuously increase speed
-  speed += 0.001;
+// Food position
+let food = { x: 0, y: 0 };
 
-  updateSnake();
-  drawAll();
+// Game states: "PLAY", "WIN", "LOSE"
+let gameState = "PLAY";
 
+// Used to track total grid cells to detect 75% fill
+let totalCells = 0;
+
+/*============================================================================
+  INITIAL SETUP
+============================================================================*/
+function init() {
+  canvas = document.getElementById("gameCanvas");
+  ctx = canvas.getContext("2d");
+  
+  // Make canvas match full window
+  resizeCanvas();
+
+  // Calculate total grid “cells” based on segmentSize
+  const cols = Math.floor(canvas.width / segmentSize);
+  const rows = Math.floor(canvas.height / segmentSize);
+  totalCells = cols * rows;
+
+  // Reset snake to middle
+  snake = [];
+  const startX = Math.floor(cols / 2) * segmentSize;
+  const startY = Math.floor(rows / 2) * segmentSize;
+  for (let i = 0; i < initialSnakeLength; i++) {
+    // Create segments behind the head. Head is at [0].
+    snake.push({ x: startX - i * segmentSize, y: startY });
+  }
+
+  // Start direction to the right
+  dx = 1;
+  dy = 0;
+  
+  // Reset speed and thickness
+  speed = 2;
+  segmentSize = 20;
+
+  // Place food at random
+  placeFood();
+
+  // Start in play mode
+  gameState = "PLAY";
+  
+  // Kick off animation
   requestAnimationFrame(gameLoop);
 }
 
-//===== UPDATE SNAKE =====
-function updateSnake() {
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+
+window.addEventListener('resize', () => {
+  // If the window is resized, just reload the page or re-init 
+  // (Here we’ll do a full init to keep it simple)
+  init();
+});
+
+/*============================================================================
+  MAIN GAME LOOP
+============================================================================*/
+function gameLoop() {
+  if (gameState === "PLAY") {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+  }
+  else {
+    // If game is over (WIN or LOSE), just draw the end screen
+    drawEndScreen();
+  }
+}
+
+/*============================================================================
+  UPDATE LOGIC
+============================================================================*/
+function update() {
+  // Gradually increase movement speed
+  speed += 0.001;
+
   // Calculate new head position
   const headX = snake[0].x + dx * speed;
   const headY = snake[0].y + dy * speed;
 
-  // Add new head to the front of the snake array
-  snake.unshift({x: headX, y: headY});
+  // Check collision with border
+  if (headX < 0 || headX + segmentSize > canvas.width ||
+      headY < 0 || headY + segmentSize > canvas.height) {
+    // Hit the “rock” border -> Lose
+    gameState = "LOSE";
+    return;
+  }
 
-  // Pop off the last segment to maintain the same length
-  snake.pop();
+  // Add new head at the front
+  snake.unshift({ x: headX, y: headY });
 
-  // If you want the snake to stay in-bounds, you could clamp
-  // the headX and headY to the canvas boundaries here (optional).
+  // Check if snake ate the food (simple bounding-box check)
+  // We’ll say if head center is close to the food center
+  let distX = (headX + segmentSize/2) - (food.x + segmentSize/2);
+  let distY = (headY + segmentSize/2) - (food.y + segmentSize/2);
+  if (Math.abs(distX) < segmentSize && Math.abs(distY) < segmentSize) {
+    // Eaten!
+    // Increase snake thickness slightly
+    segmentSize += 1;
+
+    // Place new food
+    placeFood();
+  } else {
+    // Otherwise, pop the tail to keep same length
+    snake.pop();
+  }
+
+  // Check if snake occupies 75% of total grid cells
+  if (snake.length >= 0.75 * totalCells) {
+    gameState = "WIN";
+    return;
+  }
 }
 
-//===== DRAW EVERYTHING =====
-function drawAll() {
+/*============================================================================
+  DRAW LOGIC
+============================================================================*/
+function draw() {
+  // Clear background
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Draw snake
+  // Draw the "rock" border as a black rectangle outline
+  ctx.strokeStyle = "black";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+  // Draw food (same color as snake)
   ctx.fillStyle = "green";
+  ctx.fillRect(food.x, food.y, segmentSize, segmentSize);
+
+  // Draw snake segments
   snake.forEach(segment => {
     ctx.fillRect(segment.x, segment.y, segmentSize, segmentSize);
   });
 }
 
-//===== KEYBOARD CONTROLS =====
-document.addEventListener('keydown', e => {
-  switch(e.key) {
-    case "ArrowUp":
-      // prevent reversing directly down if already going up
-      if (dy === 0) { dx = 0; dy = -1; }
-      break;
-    case "ArrowDown":
-      if (dy === 0) { dx = 0; dy = 1; }
-      break;
-    case "ArrowLeft":
-      if (dx === 0) { dx = -1; dy = 0; }
-      break;
-    case "ArrowRight":
-      if (dx === 0) { dx = 1; dy = 0; }
-      break;
+/*============================================================================
+  FOOD PLACEMENT
+============================================================================*/
+function placeFood() {
+  // Random x,y in multiples of the current segmentSize
+  const maxX = Math.floor((canvas.width - segmentSize) / segmentSize);
+  const maxY = Math.floor((canvas.height - segmentSize) / segmentSize);
+  const randomX = Math.floor(Math.random() * maxX) * segmentSize;
+  const randomY = Math.floor(Math.random() * maxY) * segmentSize;
+
+  food.x = randomX;
+  food.y = randomY;
+}
+
+/*============================================================================
+  END SCREENS (WIN/LOSE)
+============================================================================*/
+function drawEndScreen() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw “rock” border
+  ctx.strokeStyle = "black";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+  // Show message
+  ctx.fillStyle = "black";
+  ctx.font = "40px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  if (gameState === "LOSE") {
+    ctx.fillText("You Lose!", canvas.width/2, canvas.height/2 - 40);
+  } else if (gameState === "WIN") {
+    ctx.fillText("You Win!", canvas.width/2, canvas.height/2 - 40);
+  }
+
+  ctx.font = "24px sans-serif";
+  ctx.fillText("Press [SPACE] to Restart", canvas.width/2, canvas.height/2 + 10);
+}
+
+/*============================================================================
+  RESTART
+============================================================================*/
+function restartGame() {
+  init();
+}
+
+/*============================================================================
+  KEYBOARD CONTROLS
+============================================================================*/
+document.addEventListener('keydown', (e) => {
+  if (gameState === "PLAY") {
+    // Only move if we’re playing
+    switch(e.key) {
+      case "ArrowUp":
+        if (dy === 0) { dx = 0; dy = -1; }
+        break;
+      case "ArrowDown":
+        if (dy === 0) { dx = 0; dy = 1; }
+        break;
+      case "ArrowLeft":
+        if (dx === 0) { dx = -1; dy = 0; }
+        break;
+      case "ArrowRight":
+        if (dx === 0) { dx = 1; dy = 0; }
+        break;
+    }
+  } else {
+    // If we’re in WIN/LOSE state, let SPACE restart the game
+    if (e.key === " " || e.code === "Space") {
+      restartGame();
+    }
   }
 });
 
-//===== START GAME =====
-gameLoop();
+/*============================================================================
+  START GAME
+============================================================================*/
+init();
 </script>
 </body>
 </html>
