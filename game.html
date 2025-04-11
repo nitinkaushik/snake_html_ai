@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>Minimal Snake Game</title>
+  <title>Snake Game (Arrow Keys in All Directions)</title>
   <style>
     body {
       margin: 0;
@@ -20,67 +20,87 @@
 <canvas id="gameCanvas" width="400" height="400"></canvas>
 
 <script>
-  const canvas = document.getElementById('gameCanvas');
-  const ctx = canvas.getContext('2d');
+//===== SETUP =====
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
 
-  // Snake starting position and size
-  let snakeX = 50;
-  let snakeY = canvas.height / 2;
-  let snakeSize = 20;
+// Snake body is an array of segments, each segment has (x, y).
+// We'll start with 5 segments in a horizontal line.
+let snake = [
+  {x: 200, y: 200},
+  {x: 180, y: 200},
+  {x: 160, y: 200},
+  {x: 140, y: 200},
+  {x: 120, y: 200},
+];
+const segmentSize = 20;  // each segment is a 20x20 square
 
-  // Vertical velocity (speed) for the snake
-  let velocityY = 0;
-  let speed = 2;
+// Directions: we store current direction as dx, dy (unit vectors)
+let dx = 1;  // moving right initially
+let dy = 0;
 
-  function drawSnake() {
-    // Draw a simple square for the snake
-    ctx.fillStyle = "green";
-    ctx.fillRect(snakeX, snakeY, snakeSize, snakeSize);
-  }
+// Initial speed. We'll increase it slowly during the game.
+let speed = 2;
 
-  function update() {
-    // Update snake position based on velocity
-    snakeY += velocityY;
+//===== GAME LOOP =====
+function gameLoop() {
+  // Continuously increase speed
+  speed += 0.001;
 
-    // Keep snake inside the canvas
-    if (snakeY < 0) {
-      snakeY = 0;
-    }
-    if (snakeY + snakeSize > canvas.height) {
-      snakeY = canvas.height - snakeSize;
-    }
-  }
+  updateSnake();
+  drawAll();
 
-  function gameLoop() {
-    // Clear the canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Update and draw
-    update();
-    drawSnake();
+  requestAnimationFrame(gameLoop);
+}
 
-    // Continue the game loop
-    requestAnimationFrame(gameLoop);
-  }
+//===== UPDATE SNAKE =====
+function updateSnake() {
+  // Calculate new head position
+  const headX = snake[0].x + dx * speed;
+  const headY = snake[0].y + dy * speed;
 
-  // Handle keydown for up/down arrow keys
-  document.addEventListener('keydown', function(e) {
-    if (e.key === "ArrowUp") {
-      velocityY = -speed;
-    } else if (e.key === "ArrowDown") {
-      velocityY = speed;
-    }
+  // Add new head to the front of the snake array
+  snake.unshift({x: headX, y: headY});
+
+  // Pop off the last segment to maintain the same length
+  snake.pop();
+
+  // If you want the snake to stay in-bounds, you could clamp
+  // the headX and headY to the canvas boundaries here (optional).
+}
+
+//===== DRAW EVERYTHING =====
+function drawAll() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw snake
+  ctx.fillStyle = "green";
+  snake.forEach(segment => {
+    ctx.fillRect(segment.x, segment.y, segmentSize, segmentSize);
   });
+}
 
-  // Stop movement when arrow key is released
-  document.addEventListener('keyup', function(e) {
-    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-      velocityY = 0;
-    }
-  });
+//===== KEYBOARD CONTROLS =====
+document.addEventListener('keydown', e => {
+  switch(e.key) {
+    case "ArrowUp":
+      // prevent reversing directly down if already going up
+      if (dy === 0) { dx = 0; dy = -1; }
+      break;
+    case "ArrowDown":
+      if (dy === 0) { dx = 0; dy = 1; }
+      break;
+    case "ArrowLeft":
+      if (dx === 0) { dx = -1; dy = 0; }
+      break;
+    case "ArrowRight":
+      if (dx === 0) { dx = 1; dy = 0; }
+      break;
+  }
+});
 
-  // Start the game loop
-  gameLoop();
+//===== START GAME =====
+gameLoop();
 </script>
 </body>
 </html>
